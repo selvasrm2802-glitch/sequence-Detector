@@ -24,6 +24,7 @@ module tt_um_example (
    
     wire sequence_in = ui_in[0] ; // binary input
     wire detector_out = uo_out[0] ; // output of the sequence detector
+    
 parameter  Zero=3'b000, // "Zero" State
   One=3'b001, // "One" State
   OneZero=3'b011, // "OneZero" State
