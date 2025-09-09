@@ -5,36 +5,51 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles
 
+SEQUENCE = [1, 0, 1, 1]  # The sequence we want to detect: 1011
 
 @cocotb.test()
-async def test_project(dut):
-    dut._log.info("Start")
+async def test_moore_sequence_detector(dut):
+    dut._log.info("Start Moore Sequence Detector Test")
 
-    # Set the clock period to 10 us (100 KHz)
-    clock = Clock(dut.clk, 10, units="us")
+    # Create a clock with 10 ns period
+    clock = Clock(dut.clk, 10, units="ns")
     cocotb.start_soon(clock.start())
 
     # Reset
-    dut._log.info("Reset")
+    dut._log.info("Applying Reset")
+    dut.rst_n.value = 0
     dut.ena.value = 1
     dut.ui_in.value = 0
-    dut.uio_in.value = 0
-    dut.rst_n.value = 0
-    await ClockCycles(dut.clk, 10)
+    await ClockCycles(dut.clk, 5)
     dut.rst_n.value = 1
-
-    dut._log.info("Test project behavior")
-
-    # Set the input values you want to test
-    dut.ui_in.value = 20
-    dut.uio_in.value = 30
-
-    # Wait for one clock cycle to see the output values
     await ClockCycles(dut.clk, 1)
 
-    # The following assersion is just an example of how to check the output values.
-    # Change it to match the actual expected output of your module:
-    assert dut.uo_out.value == 50
+    # Function to apply one input bit per clock
+    async def apply_bit(bit):
+        dut.ui_in.value = bit
+        await ClockCycles(dut.clk, 1)
 
-    # Keep testing the module by changing the input values, waiting for
-    # one or more clock cycles, and asserting the expected output values.
+    # Test 1: Feed some random bits, then the sequence
+    dut._log.info("Feeding initial random bits")
+    random_stream = [0, 1, 0, 0, 1]
+    for bit in random_stream:
+        await apply_bit(bit)
+        assert dut.uo_out.value == 0, f"Unexpected detection at random stream with bit {bit}"
+
+    # Test 2: Feed the actual sequence 1011
+    dut._log.info(f"Feeding target sequence: {SEQUENCE}")
+    for i, bit in enumerate(SEQUENCE):
+        await apply_bit(bit)
+
+    # Check detection after full sequence is applied
+    assert dut.uo_out.value == 1, f"Sequence {SEQUENCE} not detected!"
+
+    # Test 3: Check reset clears detection
+    dut._log.info("Testing reset clears detection")
+    dut.rst_n.value = 0
+    await ClockCycles(dut.clk, 2)
+    dut.rst_n.value = 1
+    await ClockCycles(dut.clk, 1)
+    assert dut.uo_out.value == 0, "Output not cleared after reset"
+
+    dut._log.info("Moore Sequence Detector Test Passed")
