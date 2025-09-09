@@ -45,5 +45,5 @@ module tb ();
       .clk    (clk),      // clock
       .rst_n  (rst_n)     // not reset
   );
-
+always #5 clk= ~clk;
 endmodule
